@@ -51,6 +51,9 @@
 #include <asm/firmware.h>
 #endif
 
+#if defined (CONFIG_USB_EHCI_SYNOPSYS)
+#include <mach/platform.h>
+#endif
 /*-------------------------------------------------------------------------*/
 
 /*
@@ -466,9 +469,21 @@ static void ehci_turn_off_all_ports(struct ehci_hcd *ehci)
 {
 	int	port = HCS_N_PORTS(ehci->hcs_params);
 
+#if defined(CONFIG_USB_HSIC_SYNOPSYS)
+	while (port--) {
+		if (port == 1) {
+			ehci_writel(ehci, PORT_RWC_BITS,
+					ehci->hsic_status_reg);
+		} else {
+			ehci_writel(ehci, PORT_RWC_BITS,
+					&ehci->regs->port_status[port]);
+		}
+	}
+#else
 	while (port--)
 		ehci_writel(ehci, PORT_RWC_BITS,
 				&ehci->regs->port_status[port]);
+#endif
 }
 
 /*
@@ -930,8 +945,19 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 			/* leverage per-port change bits feature */
 			if (ehci->has_ppcd && !(ppcd & (1 << i)))
 				continue;
+
+#if defined( CONFIG_USB_HSIC_SYNOPSYS )
+			if (i == 1) {
+				pstatus = ehci_readl(ehci,
+						ehci->hsic_status_reg);
+			} else {
+				pstatus = ehci_readl(ehci,
+						&ehci->regs->port_status[i]);
+			}
+#else
 			pstatus = ehci_readl(ehci,
 					 &ehci->regs->port_status[i]);
+#endif
 
 			if (pstatus & PORT_OWNER)
 				continue;
@@ -1360,6 +1386,11 @@ MODULE_LICENSE ("GPL");
 #define PLATFORM_DRIVER		s5p_ehci_driver
 #endif
 
+#ifdef CONFIG_USB_EHCI_SYNOPSYS
+#include "ehci-synop.c"
+#define PLATFORM_DRIVER		nxp_ehci_driver
+#endif
+
 #ifdef CONFIG_SPARC_LEON
 #include "ehci-grlib.c"
 #define PLATFORM_DRIVER		ehci_grlib_driver
@@ -1391,6 +1422,19 @@ MODULE_LICENSE ("GPL");
 #error "missing bus glue for ehci-hcd"
 #endif
 
+#if defined(CFG_USB_EHCI_LATE_LOAD)
+struct delayed_work ehci_late_work;
+
+static void ehci_hcd_late_work(struct work_struct *work)
+{
+	int retval = 0;
+
+	retval = platform_driver_register(&PLATFORM_DRIVER);
+	if (retval < 0)
+		printk("%s error!!! %d\n", __func__, retval);
+}
+#endif
+
 static int __init ehci_hcd_init(void)
 {
 	int retval = 0;
@@ -1419,9 +1463,16 @@ static int __init ehci_hcd_init(void)
 #endif
 
 #ifdef PLATFORM_DRIVER
+#if !defined (CFG_USB_EHCI_LATE_LOAD)
 	retval = platform_driver_register(&PLATFORM_DRIVER);
 	if (retval < 0)
 		goto clean0;
+#else
+    INIT_DELAYED_WORK(&ehci_late_work, ehci_hcd_late_work);
+	schedule_delayed_work(&ehci_late_work,
+                msecs_to_jiffies(CFG_USB_EHCI_LATE_LOADTIME));
+	printk("==== echi_hcd_late_work after %d ms\n", CFG_USB_EHCI_LATE_LOADTIME);
+#endif
 #endif
 
 #ifdef PCI_DRIVER
@@ -1466,8 +1517,10 @@ clean2:
 clean1:
 #endif
 #ifdef PLATFORM_DRIVER
+#if !defined (CFG_USB_EHCI_LATE_LOAD)
 	platform_driver_unregister(&PLATFORM_DRIVER);
 clean0:
+#endif
 #endif
 #ifdef DEBUG
 	debugfs_remove(ehci_debug_root);
