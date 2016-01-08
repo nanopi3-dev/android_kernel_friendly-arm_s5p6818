@@ -571,11 +571,10 @@ static struct i2c_board_info __initdata ds1307_i2c_bdi = {
 #endif
 
 #if defined(CONFIG_SENSORS_PCF8591_MODULE)
-
 #define PCF8591_I2C_BUS (0)
 
 static struct i2c_board_info __initdata pcf8591_i2c_bdi = {
-        I2C_BOARD_INFO("pcf8591", 0x48),
+	I2C_BOARD_INFO("pcf8591", 0x48),
 };
 #endif
 
@@ -1689,7 +1688,7 @@ void __init nxp_board_devices_register(void)
 #if defined(CONFIG_SENSORS_PCF8591_MODULE)
 	printk("plat: add pcf8591 device\n");
 	i2c_register_board_info(DS1307_I2C_BUS, &pcf8591_i2c_bdi, 1);
-#endif	
+#endif
 
 #if defined(CONFIG_RFKILL_NXP)
 	printk("plat: add device rfkill\n");
