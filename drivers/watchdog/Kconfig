@@ -349,6 +349,41 @@ config IMX2_WDT
 	  To compile this driver as a module, choose M here: the
 	  module will be called imx2_wdt.
 
+config NXP_WDT
+        tristate "NXP Watchdog"
+        depends on ARCH_CPU_SLSI
+        select WATCHDOG_CORE
+        help
+          Watchdog timer block in the SLsiAP SoCs. This will reboot
+          the system when the timer expires with the watchdog enabled.
+
+          The driver is limited by the speed of the system's PCLK
+          signal, so with reasonably fast systems (PCLK around 50-66MHz)
+          then watchdog intervals of over approximately 20seconds are
+          unavailable.
+
+          The driver can be built as a module by choosing M, and will
+          be called nxp_wdt
+
+config WDT_SYSFS
+	bool "/sys/devices/platform/wdt/soft (sysfs interface)"
+	depends on NXP_WDT
+	default n
+
+config WDT_TASK
+	bool "do keepalive using watchdog task for cpu reset in task hung state"
+	depends on NXP_WDT
+	default n
+
+config DEFAULT_WDT_TASK_TIMEOUT
+    int "Default timeout for hung task detection (in seconds) max:10sec"
+	depends on NXP_WDT && WDT_TASK
+	default 10
+    help 
+      This option controls the default timeout (in seconds) used
+      to determine when a task has become non-responsive and should
+      be considered hung.
+
 # AVR32 Architecture
 
 config AT32AP700X_WDT

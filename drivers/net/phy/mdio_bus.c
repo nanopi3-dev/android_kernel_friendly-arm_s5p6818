@@ -36,6 +36,10 @@
 #include <asm/irq.h>
 #include <asm/uaccess.h>
 
+#include <mach/platform.h>
+#include <mach/devices.h>
+#include <mach/soc.h>
+
 /**
  * mdiobus_alloc_size - allocate a mii_bus structure
  * @size: extra amount of memory to allocate for private storage.
@@ -391,7 +395,9 @@ static struct dev_pm_ops mdio_bus_pm_ops = {
 struct bus_type mdio_bus_type = {
 	.name		= "mdio_bus",
 	.match		= mdio_bus_match,
+#if !defined(CFG_ETHER_LOOPBACK_MODE) || CFG_ETHER_LOOPBACK_MODE == 0
 	.pm		= MDIO_BUS_PM_OPS,
+#endif
 };
 EXPORT_SYMBOL(mdio_bus_type);
 

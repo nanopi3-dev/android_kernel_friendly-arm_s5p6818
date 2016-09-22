@@ -395,8 +395,13 @@ static void __cpuinit gic_cpu_init(struct gic_chip_data *gic)
 	 * Deal with the banked PPI and SGI interrupts - disable all
 	 * PPI interrupts, ensure all SGI interrupts are enabled.
 	 */
+#if defined (CONFIG_SMP) && defined (CONFIG_ARCH_S5P4418) && defined (CONFIG_CPU_S5P4418_SMP_ISR)
+	writel_relaxed(0x7fff0000, dist_base + GIC_DIST_ENABLE_CLEAR);
+	writel_relaxed(0x8000ffff, dist_base + GIC_DIST_ENABLE_SET);
+#else
 	writel_relaxed(0xffff0000, dist_base + GIC_DIST_ENABLE_CLEAR);
 	writel_relaxed(0x0000ffff, dist_base + GIC_DIST_ENABLE_SET);
+#endif
 
 	/*
 	 * Set priority on PPI and SGI interrupts
@@ -698,11 +703,20 @@ void __init gic_init_bases(unsigned int gic_nr, int irq_start,
 	 * Find out how many interrupts are supported.
 	 * The GIC only supports up to 1020 interrupt sources.
 	 */
+#if defined (CONFIG_ARCH_S5P4418)
+	gic_irqs = 0;
+#else
 	gic_irqs = readl_relaxed(gic_data_dist_base(gic) + GIC_DIST_CTR) & 0x1f;
+#endif
+
 	gic_irqs = (gic_irqs + 1) * 32;
 	if (gic_irqs > 1020)
 		gic_irqs = 1020;
 	gic->gic_irqs = gic_irqs;
+
+#if defined (CONFIG_ARCH_S5P6818)
+	gic_irqs  = NR_IRQS;
+#endif
 
 	gic_irqs -= hwirq_base; /* calculate # of irqs to allocate */
 	irq_base = irq_alloc_descs(irq_start, 16, gic_irqs, numa_node_id());
